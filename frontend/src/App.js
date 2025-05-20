@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { RpcProvider, Contract, shortString } from "starknet";
+import { RpcProvider, Contract, shortString, num } from "starknet";
 import axios from "axios";
 import "./App.css";
 
-// ----------- CONFIG -----------
-const CONTRACT_ADDRESS = "0x072cf4b2ce0742f6afdf0956a1e8ee79a7f3ef2696f5f5f115b688c3c831ccb7";
+// Starknet Contract Information
+const CONTRACT_ADDRESS = "0x028ab9c5a093624cd7e55958b4dd324c905f010a76167c349b5bc602f9662862";
+
+// Replace these with your Pinata API keys
+const PINATA_API_KEY = "bc4d4e8362402c507084"; 
+const PINATA_SECRET_API_KEY = "9340cd3ec48eb7222e9254f698ab501a6692c058b6e25f69d07a3c6b8b2e26e6";
+
+// Starknet Provider Configuration
 const provider = new RpcProvider({
-  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/FCyLgvgy4q9oa_OScl33IgtjRYHNr1gP"
+  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/FCyLgvgy4q9oa_OScl33IgtjRYHNr1gP",
 });
-const contractABI = [
+ 
+// ABI - You'll fill this in with your ABI
+const ABI = [
   {
     "name": "STK",
     "type": "impl",
@@ -858,589 +866,783 @@ const contractABI = [
       }
     ]
   }
-]; 
+]; // You'll fill this in with your ABI
 
-// Pinata keys (for development only - in production, use environment variables)
-const PINATA_API_KEY = "fd525a94d45c0f00c74d";
-const PINATA_SECRET_API_KEY = "6c0e69b3d9356855f2de1df6e1e9dbe0797f5999d451b3477d3b6a350cf70796";
-
-// ----------- APP -----------
 function App() {
-  // State
-  const [account, setAccount] = useState(null);
-  const [address, setAddress] = useState("");
-  const [readContract, setReadContract] = useState(null);
-  const [writeContract, setWriteContract] = useState(null);
-  const [tweets, setTweets] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState("");
-  const [error, setError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Profile
+  // State variables
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [accountAddress, setAccountAddress] = useState("");
   const [username, setUsername] = useState("");
-  const [profilePic, setProfilePic] = useState(null);
-  const [userProfile, setUserProfile] = useState({ name: "", profilePic: "" });
-  const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+  const [tweetContent, setTweetContent] = useState("");
+  const [mediaFile, setMediaFile] = useState(null);
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [tweets, setTweets] = useState([]);
+  const [userProfile, setUserProfile] = useState({
+    name: "",
+    profilePic: ""
+  });
+  const [contract, setContract] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notification, setNotification] = useState({ message: "", type: "" });
+  const [starknetAccount, setStarknetAccount] = useState(null); // New state to store the account object
+  const [mediaFileName, setMediaFileName] = useState("");
+  const [profilePicFileName, setProfilePicFileName] = useState("");
 
-  // Tweet
-  const [tweetText, setTweetText] = useState("");
-  const [tweetMedia, setTweetMedia] = useState(null);
-  const [isUploadingTweet, setIsUploadingTweet] = useState(false);
+  // Debug
+  const [debugLog, setDebugLog] = useState([]);
+  
+  // Add debug logging function
+  const addDebugLog = (message) => {
+    console.log(message);
+    setDebugLog(prev => [...prev, { time: new Date().toISOString(), message }]);
+  };
 
-  // ----------- INIT -----------
-  useEffect(() => {
-    // Initialize with the provider for read-only operations
-    setReadContract(new Contract(contractABI, CONTRACT_ADDRESS, provider));
-  }, []);
+  // Show notification helper
+  const showNotification = (message, type = "error") => {
+    setError(message);
+    setNotification({ message, type });
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      setError("");
+      setNotification({ message: "", type: "" });
+    }, 5000);
+  };
 
-  // Update data when account/address changes
-  useEffect(() => {
-    if (account && address) {
-      // Set up write contract with the connected account
-      setWriteContract(new Contract(contractABI, CONTRACT_ADDRESS, account));
-      
-      // Only fetch user data if we have an account connected
-      fetchUserProfile();
-      fetchTweets();
-    }
-  }, [account, address]);
-
-  // ----------- WALLET CONNECT -----------
+  // Connect wallet function
   const connectWallet = async () => {
     if (!window.starknet) {
-      showError("Install Argent X or Braavos wallet extension.");
+      showNotification("Please install a StarkNet wallet like Argent X or Braavos");
       return;
     }
+    
     try {
-      setLoading(true);
+      setIsLoading(true);
+      
+      // Enable the wallet
       await window.starknet.enable();
       
-      if (!window.starknet.isConnected || !window.starknet.selectedAddress) {
-        showError("Wallet connection failed.");
-        setLoading(false);
-        return;
+      // Get the account directly from starknet
+      const starkAccount = window.starknet.account;
+      
+      if (!starkAccount || !starkAccount.address) {
+        throw new Error("No account selected in wallet");
       }
       
-      setAccount(window.starknet.account);
-      setAddress(window.starknet.selectedAddress);
+      // Create a contract instance with the connected account
+      const contractInstance = new Contract(ABI, CONTRACT_ADDRESS, starkAccount);
       
-      // Initialize write contract with connected account
-      setWriteContract(new Contract(contractABI, CONTRACT_ADDRESS, window.starknet.account));
+      setContract(contractInstance);
+      setWalletConnected(true);
+      setAccountAddress(starkAccount.address);
+      setStarknetAccount(starkAccount); // Save the account object
       
-      showNotification("Wallet connected!");
-      setLoading(false);
+      // Load user profile after connecting
+      await fetchUserProfile(starkAccount.address);
+      
+      addDebugLog("Wallet connected: " + starkAccount.address);
+      showNotification("Wallet connected successfully!", "success");
     } catch (err) {
-      showError("Wallet connection error: " + (err.message || "Unknown error"));
-      setLoading(false);
+      addDebugLog("Wallet connection failed: " + JSON.stringify(err));
+      showNotification("Failed to connect wallet: " + (err.message || "Unknown error"));
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ----------- PINATA UPLOAD -----------
+  // Upload file to Pinata
   const uploadToPinata = async (file) => {
     try {
+      setIsLoading(true);
+      
       const formData = new FormData();
       formData.append("file", file);
       
-      const response = await axios.post(
+      const metadata = JSON.stringify({
+        name: `StarkTweet-${Date.now()}`,
+      });
+      formData.append('pinataMetadata', metadata);
+      
+      const options = JSON.stringify({
+        cidVersion: 0,
+      });
+      formData.append('pinataOptions', options);
+      
+      const res = await axios.post(
         "https://api.pinata.cloud/pinning/pinFileToIPFS",
         formData,
         {
+          maxBodyLength: "Infinity",
           headers: {
+            'Content-Type': `multipart/form-data;`,
             pinata_api_key: PINATA_API_KEY,
             pinata_secret_api_key: PINATA_SECRET_API_KEY,
-            "Content-Type": "multipart/form-data",
           },
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
         }
       );
       
-      if (!response.data || !response.data.IpfsHash) {
-        throw new Error("Pinata upload failed - missing hash");
-      }
-      
-      return `https://gateway.pinata.cloud/ipfs/${response.data.IpfsHash}`;
+      addDebugLog("File uploaded to Pinata: " + JSON.stringify(res.data));
+      return `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`;
     } catch (error) {
-      console.error("Pinata upload error:", error);
-      throw new Error(`Pinata upload failed: ${error.message}`);
+      addDebugLog("Error uploading to Pinata: " + JSON.stringify(error));
+      throw new Error("Failed to upload file to Pinata: " + (error.message || "Unknown error"));
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ----------- FELT UTILS -----------
-  const stringToFelt = (str) => {
-    try {
-      return shortString.encodeShortString(str.slice(0, 31));
-    } catch (error) {
-      console.error("Error encoding string to felt:", error);
-      return shortString.encodeShortString(str.slice(0, 31));
-    }
-  };
-  
-  const feltToString = (felt) => {
-    if (!felt || felt === "0x0") return "";
-    
-    try {
-      let val = felt;
-      if (typeof felt === "bigint" || typeof felt === "number") {
-        val = "0x" + felt.toString(16);
-      }
-      if (typeof val === "string" && val.startsWith("0x")) {
-        return shortString.decodeShortString(val);
-      }
-      return val.toString();
-    } catch (error) {
-      console.error("Error decoding felt to string:", error);
-      return felt.toString();
-    }
-  };
-
-  // ----------- PROFILE -----------
-  const fetchUserProfile = async () => {
-    if (!readContract || !address) return;
-    
-    try {
-      setLoading(true);
-      
-      // We'll use a try-catch for each separate call to handle failures gracefully
-      let name = "";
-      let profilePicUri = "";
-      
-      try {
-        // Always use readContract for read operations
-        const nameResult = await readContract.get_name(address);
-        name = nameResult && nameResult.length > 0 ? feltToString(nameResult[0]) : "";
-      } catch (err) {
-        console.error("Failed to fetch username:", err);
-      }
-      
-      try {
-        const profilePicResult = await readContract.get_profile_picture(address);
-        profilePicUri = profilePicResult && profilePicResult.length > 0 ? feltToString(profilePicResult[0]) : "";
-      } catch (err) {
-        console.error("Failed to fetch profile picture:", err);
-      }
-      
-      setUserProfile({
-        name,
-        profilePic: profilePicUri
-      });
-      
-      setUsername(name || "");
-      setLoading(false);
-    } catch (err) {
-      console.error("Failed to fetch user profile:", err);
-      showError("Failed to fetch user profile: " + (err.message || "Unknown error"));
-      setLoading(false);
-    }
-  };
-
+  // Set user profile
   const updateUserProfile = async () => {
-    if (!writeContract || !username) {
-      showError("Enter a username and connect wallet.");
+    if (!walletConnected || !username) {
+      showNotification("Please connect wallet and set a username");
       return;
     }
     
     try {
-      setLoading(true);
-      showNotification("Updating profile...");
+      setIsLoading(true);
       
-      const usernameFelt = stringToFelt(username);
-      // Use writeContract for write operations
-      const tx = await writeContract.invoke("user_profile", [usernameFelt]);
+      // Convert username to felt - limit to 31 characters for short string
+      const truncatedUsername = username.substring(0, 31);
+      const usernameAsFelt = shortString.encodeShortString(truncatedUsername);
       
-      // Show a notification while waiting
-      showNotification("Transaction submitted. Waiting for confirmation...");
-      
-      await provider.waitForTransaction(tx.transaction_hash);
-      showNotification("Profile updated successfully!");
-      
-      // Refresh profile data
-      await fetchUserProfile();
-    } catch (err) {
-      console.error("Profile update failed:", err);
-      showError("Profile update failed: " + (err.message || "Unknown error"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const uploadProfilePicture = async () => {
-    if (!profilePic || !writeContract) {
-      showError("Select a profile picture and connect wallet.");
-      return;
-    }
-    
-    try {
-      setIsUploadingProfile(true);
-      showNotification("Uploading profile picture...");
-      
-      const imageUrl = await uploadToPinata(profilePic);
-      const imageUriFelt = stringToFelt(imageUrl);
-      
-      // Use writeContract for write operations
-      const tx = await writeContract.invoke("set_profile_picture", [imageUriFelt]);
-      
-      showNotification("Transaction submitted. Waiting for confirmation...");
-      await provider.waitForTransaction(tx.transaction_hash);
-      
-      showNotification("Profile picture updated successfully!");
-      await fetchUserProfile();
-      setProfilePic(null);
-    } catch (err) {
-      console.error("Failed to update profile picture:", err);
-      showError("Failed to update profile picture: " + (err.message || "Unknown error"));
-    } finally {
-      setIsUploadingProfile(false);
-    }
-  };
-
-  // ----------- TWEETS -----------
-  const fetchTweets = async () => {
-    if (!readContract) return;
-    
-    try {
-      setLoading(true);
-      
-      // Get total tweet count
-      let tweetCount = 0;
-      try {
-        // Use readContract for read operations
-        const tweetCountResult = await readContract.get_global_tweet_count();
-        tweetCount = parseInt(tweetCountResult[0]?.toString() || "0");
-      } catch (err) {
-        console.error("Failed to get tweet count:", err);
-        showError("Failed to fetch tweet count");
-        setLoading(false);
-        return;
+      // Call contract to update username
+      if (!contract) {
+        throw new Error("Contract not initialized");
       }
       
-      if (tweetCount === 0) {
-        setTweets([]);
-        setLoading(false);
-        return;
-      }
+      addDebugLog("Updating profile with username: " + truncatedUsername);
+      const tx = await contract.user_profile(usernameAsFelt);
+      await provider.waitForTransaction(tx.transaction_hash);
+      addDebugLog("Profile update transaction: " + JSON.stringify(tx));
       
-      // Fetch tweets with pagination - max 10 at a time to reduce failures
-      const fetchedTweets = [];
-      const batchSize = 10;
-      
-      for (let i = 0; i < Math.min(tweetCount, 50); i++) {
+      // Upload profile picture if selected
+      if (profilePicture) {
         try {
-          // Always use readContract for read operations
-          const tweetWithMedia = await readContract.get_tweet_with_media(i);
-          
-          // Get likes count separately
-          let likeCount = 0;
-          try {
-            const likes = await readContract.get_tweet_likes(i);
-            likeCount = parseInt(likes[0]?.toString() || "0");
-          } catch (err) {
-            console.error(`Failed to get likes for tweet ${i}:`, err);
-          }
-          
-          const author = tweetWithMedia[0];
-          const content = feltToString(tweetWithMedia[1]);
-          const mediaUri = tweetWithMedia[2] && tweetWithMedia[2] !== "0x0"
-            ? feltToString(tweetWithMedia[2])
-            : null;
+          const profilePicUri = await uploadToPinata(profilePicture);
+          if (profilePicUri) {
+            // Convert URI to felt - must handle long string
+            const shortenedUri = profilePicUri.substring(0, 31);
+            const profilePicAsFelt = shortString.encodeShortString(shortenedUri);
             
-          let authorName = "";
-          let authorProfilePic = "";
-          
-          try {
-            const authorNameResult = await readContract.get_name(author);
-            authorName = authorNameResult && authorNameResult.length > 0 
-              ? feltToString(authorNameResult[0]) 
-              : "";
-          } catch (err) {
-            console.error(`Failed to get name for author ${author}:`, err);
+            addDebugLog("Setting profile picture with URI: " + shortenedUri);
+            // Call contract to set profile picture
+            const picTx = await contract.set_profile_picture(profilePicAsFelt);
+            await provider.waitForTransaction(picTx.transaction_hash);
+            addDebugLog("Profile picture transaction: " + JSON.stringify(picTx));
           }
-          
-          try {
-            const authorProfilePicResult = await readContract.get_profile_picture(author);
-            authorProfilePic = authorProfilePicResult && authorProfilePicResult.length > 0
-              ? feltToString(authorProfilePicResult[0])
-              : "";
-          } catch (err) {
-            console.error(`Failed to get profile pic for author ${author}:`, err);
-          }
-          
-          fetchedTweets.push({
-            id: i,
-            author,
-            authorName,
-            authorProfilePic,
-            content,
-            mediaUri,
-            likeCount,
-          });
-          
-          // Add a small delay between batches
-          if (i % batchSize === 0 && i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        } catch (err) {
-          console.error(`Failed to fetch tweet ${i}:`, err);
-          // Skip this tweet and continue
+        } catch (uploadError) {
+          addDebugLog("Failed to upload profile picture: " + JSON.stringify(uploadError));
+          showNotification("Profile updated but image upload failed: " + (uploadError.message || "Unknown error"));
+        } finally {
+          // Clear the file input
+          setProfilePicture(null);
+          setProfilePicFileName("");
         }
       }
       
-      setTweets(fetchedTweets.reverse());
+      // Refresh user profile
+      await fetchUserProfile(accountAddress);
+      
+      showNotification("Profile updated successfully!", "success");
     } catch (err) {
-      console.error("Failed to fetch tweets:", err);
-      showError("Failed to fetch tweets: " + (err.message || "Unknown error"));
+      addDebugLog("Profile update failed: " + JSON.stringify(err));
+      showNotification("Failed to update profile: " + (err.message || "Unknown error"));
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  // Create tweet
   const createTweet = async () => {
-    if (!writeContract || !tweetText) {
-      showError("Enter tweet text and connect wallet.");
+    if (!walletConnected || !tweetContent) {
+      showNotification("Please connect wallet and enter tweet content");
       return;
     }
     
     try {
-      setLoading(true);
-      showNotification("Creating tweet...");
+      setIsLoading(true);
       
-      const tweetFelt = stringToFelt(tweetText);
-      let tx;
+      // Convert tweet content to felt - limit to 31 characters for short string
+      const truncatedTweet = tweetContent.substring(0, 31);
+      const tweetAsFelt = shortString.encodeShortString(truncatedTweet);
       
-      if (tweetMedia) {
-        setIsUploadingTweet(true);
-        const mediaUrl = await uploadToPinata(tweetMedia);
-        const mediaUriFelt = stringToFelt(mediaUrl);
-        // Use writeContract for write operations
-        tx = await writeContract.invoke("create_tweet_with_media", [tweetFelt, mediaUriFelt]);
-      } else {
-        // Use writeContract for write operations
-        tx = await writeContract.invoke("create_tweet", [tweetFelt]);
+      if (!contract) {
+        throw new Error("Contract not initialized");
       }
       
-      showNotification("Transaction submitted. Waiting for confirmation...");
-      await provider.waitForTransaction(tx.transaction_hash);
+      let tx;
       
-      showNotification("Tweet created successfully!");
-      setTweetText("");
-      setTweetMedia(null);
+      if (mediaFile) {
+        try {
+          // Upload media file to Pinata
+          const mediaUri = await uploadToPinata(mediaFile);
+          if (mediaUri) {
+            // Convert URI to felt - must handle long string
+            const shortenedUri = mediaUri.substring(0, 31);
+            const mediaUriAsFelt = shortString.encodeShortString(shortenedUri);
+            
+            addDebugLog("Creating tweet with media: " + shortenedUri);
+            // Create tweet with media
+            tx = await contract.create_tweet_with_media(tweetAsFelt, mediaUriAsFelt);
+            await provider.waitForTransaction(tx.transaction_hash);
+            addDebugLog("Media tweet transaction: " + JSON.stringify(tx));
+          }
+        } catch (uploadError) {
+          addDebugLog("Failed to upload media: " + JSON.stringify(uploadError));
+          showNotification("Media upload failed, creating tweet without media");
+          
+          // Fallback to normal tweet if media upload fails
+          tx = await contract.create_tweet(tweetAsFelt);
+          await provider.waitForTransaction(tx.transaction_hash);
+        } finally {
+          // Clear the file input
+          setMediaFile(null);
+          setMediaFileName("");
+        }
+      } else {
+        // Create regular tweet
+        addDebugLog("Creating regular tweet");
+        tx = await contract.create_tweet(tweetAsFelt);
+        await provider.waitForTransaction(tx.transaction_hash);
+        addDebugLog("Tweet transaction: " + JSON.stringify(tx));
+      }
       
-      // Refresh tweets after a short delay
-      setTimeout(() => fetchTweets(), 1000);
+      // Reset form
+      setTweetContent("");
+      
+      // Refresh tweets
+      await fetchAllTweets();
+      
+      showNotification("Tweet created successfully!", "success");
     } catch (err) {
-      console.error("Failed to create tweet:", err);
-      showError("Failed to create tweet: " + (err.message || "Unknown error"));
+      addDebugLog("Tweet creation failed: " + JSON.stringify(err));
+      showNotification("Failed to create tweet: " + (err.message || "Unknown error"));
     } finally {
-      setLoading(false);
-      setIsUploadingTweet(false);
+      setIsLoading(false);
     }
   };
 
-  // ----------- LIKES -----------
+  // Like a tweet
   const likeTweet = async (tweetId) => {
-    if (!writeContract || !account) {
-      showError("Connect wallet to like tweets.");
+    if (!walletConnected) {
+      showNotification("Please connect wallet");
       return;
     }
     
     try {
-      setLoading(true);
-      showNotification("Liking tweet...");
+      setIsLoading(true);
       
-      // Use writeContract for write operations
-      const tx = await writeContract.invoke("like_tweet", [tweetId]);
+      // Convert tweetId to uint256 format for contract
+      const tweetIdBN = num.toBigInt(tweetId);
       
-      showNotification("Transaction submitted. Waiting for confirmation...");
+      if (!contract) {
+        throw new Error("Contract not initialized");
+      }
+      
+      // Call contract to like tweet
+      addDebugLog("Liking tweet ID: " + tweetId);
+      const tx = await contract.like_tweet(tweetIdBN);
       await provider.waitForTransaction(tx.transaction_hash);
+      addDebugLog("Like tweet transaction: " + JSON.stringify(tx));
       
-      showNotification("Tweet liked!");
+      // Refresh tweets
+      await fetchAllTweets();
       
-      // Refresh tweets after a short delay
-      setTimeout(() => fetchTweets(), 1000);
+      showNotification("Tweet liked successfully!", "success");
     } catch (err) {
-      console.error("Failed to like tweet:", err);
-      showError("Failed to like tweet: " + (err.message || "Unknown error"));
+      addDebugLog("Like tweet failed: " + JSON.stringify(err));
+      if (err.message && err.message.includes("Already liked this tweet")) {
+        showNotification("You've already liked this tweet");
+      } else {
+        showNotification("Failed to like tweet: " + (err.message || "Unknown error"));
+      }
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // ----------- HELPERS -----------
-  const handleFileUpload = (event, type) => {
-    const file = event.target.files[0];
+  // IMPROVED: Fetch user profile
+  const fetchUserProfile = async (address) => {
+    try {
+      if (!address) return { name: "", profilePic: "" };
+      
+      // Create a read-only contract instance
+      const viewOnlyContract = new Contract(ABI, CONTRACT_ADDRESS, provider);
+      
+      // Debug logging
+      addDebugLog("Fetching profile for address: " + address);
+      
+      try {
+        // Get user name - direct call with proper parameter
+        const nameResponse = await viewOnlyContract.get_name(address);
+        addDebugLog("Name response: " + JSON.stringify(nameResponse));
+        
+        // Get user profile picture - direct call with proper parameter
+        const profilePicResponse = await viewOnlyContract.get_profile_picture(address);
+        addDebugLog("Profile pic response: " + JSON.stringify(profilePicResponse));
+        
+        // Process name
+        let nameStr = "";
+        if (nameResponse && nameResponse !== '0') {
+          try {
+            nameStr = shortString.decodeShortString(nameResponse);
+          } catch (decodeError) {
+            addDebugLog("Error decoding name: " + JSON.stringify(decodeError));
+          }
+        }
+        
+        // Process profile pic
+        let profilePicUri = "";
+        if (profilePicResponse && profilePicResponse !== '0') {
+          try {
+            profilePicUri = shortString.decodeShortString(profilePicResponse);
+          } catch (decodeError) {
+            addDebugLog("Error decoding profile pic: " + JSON.stringify(decodeError));
+          }
+        }
+        
+        const profile = { name: nameStr, profilePic: profilePicUri };
+        addDebugLog("Fetched profile: " + JSON.stringify(profile));
+        
+        // Update state if it's the current user
+        if (address === accountAddress) {
+          setUserProfile(profile);
+          if (nameStr && !username) {
+            setUsername(nameStr);
+          }
+        }
+        
+        return profile;
+      } catch (callError) {
+        addDebugLog("Contract call error: " + JSON.stringify(callError));
+        throw callError;
+      }
+    } catch (err) {
+      addDebugLog("Failed to fetch user profile: " + JSON.stringify(err));
+      return { name: "", profilePic: "" };
+    }
+  };
+
+  // IMPROVED: Fetch all tweets
+  const fetchAllTweets = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Create a read-only contract instance
+      const viewOnlyContract = new Contract(ABI, CONTRACT_ADDRESS, provider);
+      
+      addDebugLog("Fetching all tweets...");
+      
+      // Get total tweet count
+      try {
+        const tweetCountResponse = await viewOnlyContract.get_global_tweet_count();
+        addDebugLog("Tweet count response: " + JSON.stringify(tweetCountResponse));
+        
+        // Check if response exists and is valid
+        if (!tweetCountResponse) {
+          addDebugLog("No tweet count returned");
+          setTweets([]);
+          return;
+        }
+        
+        const tweetCount = Number(tweetCountResponse.toString());
+        addDebugLog("Total tweets: " + tweetCount);
+        
+        if (tweetCount === 0) {
+          setTweets([]);
+          return;
+        }
+        
+        // Fetch tweets in batches (e.g., 10 at a time)
+        const batchSize = 10;
+        const totalTweets = tweetCount;
+        let allTweets = [];
+        
+        // Fetch tweets in reverse order (newest first)
+        for (let i = 0; i < totalTweets; i += batchSize) {
+          const limit = Math.min(batchSize, totalTweets - i);
+          
+          try {
+            // Convert parameters to numeric values
+            const offsetBN = i;
+            const limitBN = limit;
+            
+            addDebugLog(`Fetching tweet batch: offset=${offsetBN}, limit=${limitBN}`);
+            
+            const tweetBatchResponse = await viewOnlyContract.get_all_tweets(offsetBN, limitBN);
+            addDebugLog("Tweet batch response: " + JSON.stringify(tweetBatchResponse));
+            
+            if (!tweetBatchResponse || tweetBatchResponse.length === 0) {
+              addDebugLog("No tweets in batch");
+              continue;
+            }
+            
+            // Process each tweet
+            for (let j = 0; j < tweetBatchResponse.length; j++) {
+              const tweetId = i + j;
+              const tweetData = tweetBatchResponse[j];
+              
+              if (!tweetData || tweetData.length < 2) {
+                addDebugLog(`Skipping invalid tweet data at index ${j}`);
+                continue;
+              }
+              
+              const authorAddress = tweetData[0];
+              let tweetContent = "";
+              
+              try {
+                tweetContent = shortString.decodeShortString(tweetData[1]);
+              } catch (decodeError) {
+                addDebugLog(`Error decoding tweet ${tweetId}: ${JSON.stringify(decodeError)}`);
+                tweetContent = "[Decode Error]";
+              }
+              
+              addDebugLog(`Processing tweet ${tweetId} by ${authorAddress}: ${tweetContent}`);
+              
+              // Initialize tweet object
+              const tweet = {
+                id: tweetId,
+                author: {
+                  address: authorAddress,
+                  name: "",
+                  profilePic: ""
+                },
+                content: tweetContent,
+                mediaUri: "",
+                likes: 0,
+                hasLiked: false
+              };
+              
+              // Check if it's a media tweet and get likes
+              try {
+                const tweetIdBN = tweetId;
+                
+                // Direct call for media tweet
+                const mediaTweetResponse = await viewOnlyContract.get_tweet_with_media(tweetIdBN);
+                addDebugLog(`Media tweet ${tweetId} response: ${JSON.stringify(mediaTweetResponse)}`);
+                
+                if (mediaTweetResponse) {
+                  let mediaUri = "";
+                  try {
+                    const mediaUriFelt = mediaTweetResponse[2];
+                    if (mediaUriFelt && mediaUriFelt.toString() !== '0') {
+                      mediaUri = shortString.decodeShortString(mediaUriFelt);
+                    }
+                  } catch (mediaDecodeError) {
+                    addDebugLog(`Error decoding media URI for tweet ${tweetId}: ${JSON.stringify(mediaDecodeError)}`);
+                  }
+                  
+                  tweet.mediaUri = mediaUri;
+                  tweet.likes = parseInt(mediaTweetResponse[3].toString());
+                  addDebugLog(`Tweet ${tweetId} has media: ${mediaUri} and ${tweet.likes} likes`);
+                } else {
+                  // If not a media tweet, get likes separately
+                  const likesResponse = await viewOnlyContract.get_tweet_likes(tweetIdBN);
+                  addDebugLog(`Likes for tweet ${tweetId}: ${JSON.stringify(likesResponse)}`);
+                  
+                  if (likesResponse) {
+                    tweet.likes = parseInt(likesResponse.toString());
+                    addDebugLog(`Tweet ${tweetId} has ${tweet.likes} likes`);
+                  }
+                }
+                
+                // Check if current user has liked this tweet
+                if (walletConnected && accountAddress) {
+                  const hasLikedResponse = await viewOnlyContract.get_has_liked_tweet(
+                    accountAddress, 
+                    tweetIdBN
+                  );
+                  addDebugLog(`Has user liked tweet ${tweetId}: ${JSON.stringify(hasLikedResponse)}`);
+                  
+                  if (hasLikedResponse !== undefined) {
+                    tweet.hasLiked = Boolean(hasLikedResponse);
+                    addDebugLog(`User has ${tweet.hasLiked ? 'liked' : 'not liked'} tweet ${tweetId}`);
+                  }
+                }
+              } catch (tweetDetailError) {
+                addDebugLog(`Error fetching details for tweet ${tweetId}: ${JSON.stringify(tweetDetailError)}`);
+              }
+              
+              // Fetch author profile information
+              addDebugLog(`Fetching profile for tweet ${tweetId} author: ${authorAddress}`);
+              const authorProfile = await fetchUserProfile(authorAddress);
+              tweet.author.name = authorProfile.name;
+              tweet.author.profilePic = authorProfile.profilePic;
+              
+              // Add to tweets array
+              allTweets.push(tweet);
+            }
+          } catch (batchError) {
+            addDebugLog(`Error fetching tweet batch starting at ${i}: ${JSON.stringify(batchError)}`);
+          }
+        }
+        
+        // Sort tweets newest first
+        allTweets.sort((a, b) => b.id - a.id);
+        addDebugLog(`Total tweets fetched: ${allTweets.length}`);
+        
+        setTweets(allTweets);
+      } catch (countError) {
+        addDebugLog("Error fetching tweet count: " + JSON.stringify(countError));
+        throw countError;
+      }
+    } catch (err) {
+      addDebugLog("Failed to fetch tweets: " + JSON.stringify(err));
+      showNotification("Failed to load tweets: " + (err.message || "Unknown error"));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch tweets when wallet connects
+  useEffect(() => {
+    if (walletConnected) {
+      fetchAllTweets();
+    }
+  }, [walletConnected]);
+
+  // Check if wallet is already connected on component mount
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      if (window.starknet && window.starknet.isConnected) {
+        try {
+          await connectWallet();
+        } catch (error) {
+          addDebugLog("Error reconnecting wallet: " + JSON.stringify(error));
+        }
+      }
+    };
+    
+    checkWalletConnection();
+  }, []);
+
+  // Handle media file selection
+  const handleFileChange = (e, fileType) => {
+    const file = e.target.files[0];
     if (!file) return;
     
-    if (file.size > 5 * 1024 * 1024) {
-      showError("File too large. Max 5MB.");
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (file.size > maxSize) {
+      showNotification("File size should not exceed 5MB");
       return;
     }
     
-    if (type === "profile") setProfilePic(file);
-    else if (type === "tweet") setTweetMedia(file);
-  };
-  
-  const formatAddress = (addr) => {
-    if (!addr) return "";
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-  
-  const showError = (msg) => { 
-    setError(msg); 
-    setTimeout(() => setError(""), 5000); 
-  };
-  
-  const showNotification = (msg) => { 
-    setNotification(msg); 
-    setTimeout(() => setNotification(""), 5000); 
+    if (!file.type.startsWith("image/")) {
+      showNotification("Only image files are supported");
+      return;
+    }
+    
+    if (fileType === "media") {
+      setMediaFile(file);
+      setMediaFileName(file.name);
+    } else if (fileType === "profilePic") {
+      setProfilePicture(file);
+      setProfilePicFileName(file.name);
+    }
   };
 
-  // ----------- UI -----------
+  // Format address for display
+  const formatAddress = (address) => {
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="header">
-        <div className="header-content">
-          <div className="logo"><span>🔵</span><h1>StarkTweet</h1></div>
-          {!account ? (
-            <button onClick={connectWallet} disabled={loading} className="connect-button">
-              {loading ? "Connecting..." : "Connect Wallet"}
-            </button>
-          ) : (
-            <div className="user-info">
-              {userProfile.profilePic && <img src={userProfile.profilePic} alt="Profile" className="header-profile-pic" />}
-              <div className="user-details">
-                <span className="username">{userProfile.name || "Unnamed User"}</span>
-                <span className="address">{formatAddress(address)}</span>
-              </div>
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="sidebar-toggle">{sidebarOpen ? "✕" : "☰"}</button>
-            </div>
-          )}
-        </div>
+    <div className="starktweet-app">
+      <header className="app-header">
+        <h1>StarkTweet</h1>
+        {!walletConnected ? (
+          <button onClick={connectWallet} className="connect-button" disabled={isLoading}>
+            {isLoading ? "Connecting..." : "Connect Wallet"}
+          </button>
+        ) : (
+          <div className="user-info">
+            <span>{userProfile.name || formatAddress(accountAddress)}</span>
+            {userProfile.profilePic && (
+              <img 
+                src={userProfile.profilePic} 
+                alt="Profile" 
+                className="profile-pic-small" 
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://via.placeholder.com/40?text=Error";
+                }}
+              />
+            )}
+          </div>
+        )}
       </header>
-      
-      {/* Notifications */}
-      {notification && <div className="notification">{notification}</div>}
-      {error && <div className="error-message">{error}<button onClick={() => setError("")}>✕</button></div>}
-      
-      {/* Sidebar */}
-      {account && (
-        <div className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-          <div className="sidebar-header"><h2>Profile</h2></div>
-          <div className="sidebar-content">
-            <div className="current-profile">
-              {userProfile.profilePic ? <img src={userProfile.profilePic} alt="Profile" className="profile-pic-preview" /> : <div className="profile-pic-placeholder"><span>👤</span></div>}
-              <h3>{userProfile.name || "Set your username"}</h3>
-            </div>
-            <div className="profile-section">
-              <h3>Set Username</h3>
-              <input type="text" placeholder="Enter username" value={username} onChange={e => setUsername(e.target.value)} className="input-field" />
-              <button onClick={updateUserProfile} disabled={loading} className="action-button">
-                {loading ? "Updating..." : "Update Username"}
-              </button>
-            </div>
-            <div className="profile-section">
-              <h3>Profile Picture</h3>
-              <label className="file-input-label">Choose Image
-                <input type="file" accept="image/*" onChange={e => handleFileUpload(e, "profile")} className="file-input" />
-              </label>
-              {profilePic && (
-                <div className="file-preview">
-                  <img src={URL.createObjectURL(profilePic)} alt="Preview" className="preview-image" />
-                  <button onClick={() => setProfilePic(null)} className="remove-preview">✕</button>
-                </div>
-              )}
-              <button onClick={uploadProfilePicture} disabled={isUploadingProfile || !profilePic} className="action-button">
-                {isUploadingProfile ? "Uploading..." : "Update Profile Picture"}
-              </button>
-            </div>
-            <div className="profile-section">
-              <h3>Create Tweet</h3>
-              <textarea placeholder="What's happening?" value={tweetText} onChange={e => setTweetText(e.target.value)} className="tweet-input" rows="4" />
-              <label className="file-input-label">Add Media
-                <input type="file" accept="image/*,video/*" onChange={e => handleFileUpload(e, "tweet")} className="file-input" />
-              </label>
-              {tweetMedia && (
-                <div className="file-preview">
-                  <img src={URL.createObjectURL(tweetMedia)} alt="Preview" className="preview-image" />
-                  <button onClick={() => setTweetMedia(null)} className="remove-preview">✕</button>
-                </div>
-              )}
-              <button onClick={createTweet} disabled={loading || isUploadingTweet || !tweetText} className="action-button tweet-button">
-                {isUploadingTweet ? "Uploading..." : loading ? "Posting..." : "Tweet"}
+
+      {walletConnected && (
+        <div className="app-content">
+          <div className="profile-section">
+            <h2>Your Profile</h2>
+            <div className="profile-form">
+              <input
+                type="text"
+                placeholder="Username (max 31 chars)"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                maxLength={31}
+                className="input-field"
+              />
+              <div className="file-input-container">
+                <label className="file-input-label">
+                  Profile Picture
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, "profilePic")}
+                    className="file-input"
+                    key={profilePicture ? "" : "profilePicReset"}
+                  />
+                </label>
+                {profilePicFileName && (
+                  <span className="file-name">{profilePicFileName}</span>
+                )}
+              </div>
+              <button 
+                onClick={updateUserProfile} 
+                disabled={isLoading || !username}
+                className="action-button"
+              >
+                {isLoading ? "Updating..." : "Update Profile"}
               </button>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Overlay when sidebar is open on mobile */}
-      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
-      
-      {/* Main Content */}
-      <main className={`main-content ${sidebarOpen ? "with-sidebar" : ""}`}>
-        {account ? (
-          <div className="tweets-container">
-            <div className="tweets-header">
-              <h2>Latest Tweets</h2>
-              <button onClick={fetchTweets} disabled={loading} className="refresh-button">
-                {loading ? "Loading..." : "🔄 Refresh"}
+
+          <div className="tweet-compose">
+            <h2>Create Tweet</h2>
+            <textarea
+              placeholder="What's happening? (max 31 chars)"
+              value={tweetContent}
+              onChange={(e) => setTweetContent(e.target.value)}
+              className="tweet-input"
+              maxLength={31} // felt limitation
+            />
+            <div className="tweet-actions">
+              <div className="file-input-container">
+                <label className="file-input-label">
+                  Add Media
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, "media")}
+                    className="file-input"
+                    key={mediaFile ? "" : "mediaReset"}
+                  />
+                </label>
+                {mediaFileName && (
+                  <span className="file-name">{mediaFileName}</span>
+                )}
+              </div>
+              <button 
+                onClick={createTweet} 
+                disabled={isLoading || !tweetContent}
+                className="action-button tweet-button"
+              >
+                {isLoading ? "Posting..." : "Tweet"}
               </button>
             </div>
-            {loading && tweets.length === 0 ? (
-              <div className="loading"><div className="loading-spinner"></div><p>Loading tweets...</p></div>
-            ) : tweets.length === 0 ? (
-              <div className="no-tweets"><div className="empty-state-icon">📝</div><p>No tweets yet. Be the first to tweet!</p></div>
+            <p className="char-count">{tweetContent.length}/31 characters</p>
+          </div>
+
+          <div className="tweet-feed">
+            <div className="feed-header">
+              <h2>Tweet Feed</h2>
+              <button 
+                onClick={fetchAllTweets} 
+                disabled={isLoading}
+                className="refresh-button"
+              >
+                {isLoading ? "Loading..." : "Refresh"}
+              </button>
+            </div>
+            
+            {tweets.length === 0 ? (
+              <p className="no-tweets">No tweets yet. Be the first to tweet!</p>
             ) : (
               <div className="tweets-list">
                 {tweets.map((tweet) => (
-                  <div key={tweet.id} className="tweet">
+                  <div key={tweet.id} className="tweet-card">
                     <div className="tweet-header">
+                      {tweet.author.profilePic ? (
+                        <img 
+                          src={tweet.author.profilePic} 
+                          alt="Profile" 
+                          className="tweet-profile-pic" 
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://via.placeholder.com/40?text=Error";
+                          }}
+                        />
+                      ) : (
+                        <div className="profile-placeholder"></div>
+                      )}
                       <div className="tweet-author">
-                        {tweet.authorProfilePic ? <img src={tweet.authorProfilePic} alt="Profile" className="author-avatar" /> : <div className="author-avatar-placeholder">👤</div>}
-                        <div className="author-info">
-                          <span className="author-name">{tweet.authorName || "Unnamed User"}</span>
-                          <span className="author-address">{formatAddress(tweet.author)}</span>
-                        </div>
+                        <span className="author-name">
+                          {tweet.author.name || formatAddress(tweet.author.address)}
+                        </span>
+                        <span className="author-address">
+                          {formatAddress(tweet.author.address)}
+                        </span>
                       </div>
                     </div>
-                    <div className="tweet-content">
-                      <p>{tweet.content}</p>
-                      {tweet.mediaUri && (
-                        <div className="tweet-media">
-                          <img src={tweet.mediaUri} alt="Tweet media" className="media-image" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="tweet-actions">
-                      <div className="tweet-id">Tweet #{tweet.id}</div>
+                    
+                    <p className="tweet-content">{tweet.content}</p>
+                    
+                    {tweet.mediaUri && (
+                      <img 
+                        src={tweet.mediaUri} 
+                        alt="Tweet media" 
+                        className="tweet-media" 
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://via.placeholder.com/300x200?text=Media+Error";
+                        }}
+                      />
+                    )}
+                    
+                    <div className="tweet-footer">
                       <button 
-                        onClick={() => likeTweet(tweet.id)} 
-                        className="like-button" 
-                        disabled={loading}
+                        onClick={() => likeTweet(tweet.id)}
+                        disabled={isLoading || tweet.hasLiked}
+                        className={`like-button ${tweet.hasLiked ? 'liked' : ''}`}
                       >
-                        ❤️ {tweet.likeCount}
+                        {tweet.hasLiked ? '❤️' : '🤍'} {tweet.likes}
                       </button>
+                      <span className="tweet-id">#{tweet.id}</span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        ) : (
-          <div className="welcome-screen">
-            <div className="welcome-icon">🌟</div>
-            <h2>Welcome to StarkTweet</h2>
-            <p>Decentralized social media on Starknet</p>
-            {/* Only show connect button if not already in header */}
-            {window.innerWidth <= 768 && (
-              <button onClick={connectWallet} disabled={loading} className="connect-button large">
-                {loading ? "Connecting..." : "Connect Wallet to Start"}
-              </button>
-            )}
+          
+          {/* Debug Panel */}
+          <div className="debug-panel">
+            <h3>Debug Log</h3>
+            <button onClick={() => setDebugLog([])}>Clear Log</button>
+            <div className="debug-log">
+              {debugLog.map((entry, idx) => (
+                <div key={idx} className="log-entry">
+                  <span className="log-time">[{entry.time.split('T')[1].split('.')[0]}]</span>
+                  <span className="log-message">{entry.message}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
+
+      {error && (
+        <div className={`notification ${notification.type === "success" ? "success" : "error"}`}>
+          {error}
+          <button className="close-notification" onClick={() => setError("")}>×</button>
+        </div>
+      )}
     </div>
   );
 }

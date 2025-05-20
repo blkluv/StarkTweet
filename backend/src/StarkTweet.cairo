@@ -1,4 +1,6 @@
-// deployed at - 0x072cf4b2ce0742f6afdf0956a1e8ee79a7f3ef2696f5f5f115b688c3c831ccb7
+// deployed at - 0x028ab9c5a093624cd7e55958b4dd324c905f010a76167c349b5bc602f9662862
+
+//class hash - 0x01341290dbd7323ef30cf3b1bf59a4d9ff7da8d9465206411c0ccce75f1ee6b3
 
 
 #[starknet::interface]
