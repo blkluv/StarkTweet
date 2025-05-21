@@ -2,7 +2,6 @@
 
 ## 🧠 Introduction
 
-The evolution of social media platforms has brought about unprecedented connectivity, content sharing, and cultural revolutions. However, the centralized architecture of mainstream platforms such as Twitter and Facebook results in limitations around content ownership, censorship, privacy, and data control. As we move into a decentralized future powered by blockchain, zero-knowledge cryptography offers an innovative path toward addressing these issues.
 
 **StarkNet**, a zk-rollup Layer 2 solution built on Ethereum, enables scalability, transparency, and low-cost transactions while retaining the security of Ethereum. Utilizing **STARKs** (Scalable Transparent Argument of Knowledge), StarkNet provides a cryptographic guarantee of validity without relying on trusted setups, and remains secure even against quantum attacks. It is powered by **Cairo**, a Turing-complete language designed specifically for writing zk-friendly smart contracts.
 
