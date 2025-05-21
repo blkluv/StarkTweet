@@ -1,19 +1,20 @@
 /* StarkTweet Main Styles */
 
-/* Color palette enrichment */
+/* Color palette - Dark Theme */
 :root {
-  --primary-bg: #f3f6fa;
-  --secondary-bg: #ffffff;
-  --accent-blue: #2563eb;
-  --accent-blue-dark: #1743a2;
+  --primary-bg: #000000;
+  --secondary-bg: #000000;
+  --card-bg: #273142;
+  --input-bg: #0f172a;
+  --input-border: #334155;
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
   --accent-red: #ef4444;
   --accent-green: #22c55e;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #334155;
 }
 
 /* Base styles */
@@ -24,7 +25,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--primary-bg);
-  color: var(--gray-700);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease;
 }
 
 .min-h-screen {
@@ -88,14 +90,16 @@ body {
 /* Header styles */
 header {
   transition: box-shadow 0.3s ease;
+  background-color: var(--secondary-bg) !important;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .bg-white {
-  background-color: var(--secondary-bg);
+  background-color: var(--secondary-bg) !important;
 }
 
 .shadow-md {
-  box-shadow: 0 4px 12px -2px rgba(37,99,235,0.10), 0 2px 4px -1px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.2);
 }
 
 .rounded-lg {
@@ -181,19 +185,19 @@ header {
 }
 
 .text-white {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .text-gray-500 {
-  color: var(--gray-500);
+  color: var(--text-secondary);
 }
 
 .text-gray-600 {
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 
 .text-gray-700 {
-  color: var(--gray-700);
+  color: var(--text-primary);
 }
 
 .text-red-500 {
@@ -201,7 +205,7 @@ header {
 }
 
 .text-red-700 {
-  color: #b91c1c;
+  color: var(--accent-red);
 }
 
 .text-green-700 {
@@ -238,15 +242,15 @@ button:active {
 }
 
 .bg-blue-300 {
-  background-color: #93c5fd;
+  background-color: rgba(59, 130, 246, 0.5);
 }
 
 .hover\:bg-blue-600:hover {
-  background-color: var(--accent-blue-dark);
+  background-color: var(--accent-blue-hover);
 }
 
 .disabled\:bg-blue-300:disabled {
-  background-color: #93c5fd;
+  background-color: rgba(59, 130, 246, 0.5);
 }
 
 .py-1 {
@@ -279,7 +283,7 @@ button:active {
 }
 
 .shadow {
-  box-shadow: 0 1px 3px 0 rgba(37,99,235,0.07), 0 1px 2px 0 rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
 
 .w-full {
@@ -296,54 +300,65 @@ button:disabled {
 }
 
 .hover\:text-red-700:hover {
-  color: #b91c1c;
-}
-
-/* Like button animation */
-button.flex.items-center.text-red-500,
-button.flex.items-center.text-gray-500,
-button.flex.items-center.text-gray-500:hover,
-button.flex.items-center.text-red-500:hover {
-  position: relative;
-  transition: color 0.18s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1);
-}
-button.flex.items-center.text-red-500:active,
-button.flex.items-center.text-gray-500:active {
-  transform: scale(0.97);
-}
-
-/* Animate heart pop on like */
-button.flex.items-center.text-red-500 span:first-child {
-  display: inline-block;
-  animation: heart-pop 0.35s cubic-bezier(.4,0,.2,1);
   color: var(--accent-red);
 }
+
+/* Enhanced Like button animation */
+button.flex.items-center.text-red-500,
+button.flex.items-center.text-gray-500 {
+  position: relative;
+  transition: color 0.18s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1);
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.2em 0.7em 0.2em 0.2em;
+  font-size: 1.1rem;
+  overflow: visible;
+}
+
+button.flex.items-center.text-red-500:active,
+button.flex.items-center.text-gray-500:active {
+  transform: scale(0.95);
+}
+
+/* Heart animation with pop effect */
+button.flex.items-center.text-red-500 span:first-child {
+  display: inline-block;
+  animation: heart-pop 0.5s cubic-bezier(.17,.67,.83,.67);
+  color: var(--accent-red);
+  transform-origin: center;
+}
+
 @keyframes heart-pop {
   0% { transform: scale(1); }
-  40% { transform: scale(1.4); }
-  70% { transform: scale(0.95);}
-  100% { transform: scale(1);}
+  15% { transform: scale(1.5); }
+  30% { transform: scale(0.8); }
+  45% { transform: scale(1.2); }
+  60% { transform: scale(0.9); }
+  75% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 /* Add a subtle bubble effect */
 button.flex.items-center.text-red-500::after {
   content: '';
   position: absolute;
-  left: 0.6em;
+  left: 0.5em;
   top: 50%;
-  width: 1.7em;
-  height: 1.7em;
-  background: rgba(239,68,68,0.12);
+  width: 2em;
+  height: 2em;
+  background: rgba(239, 68, 68, 0.15);
   border-radius: 50%;
-  transform: translateY(-50%) scale(0.6);
-  opacity: 0.6;
+  transform: translate(-50%, -50%) scale(0);
   pointer-events: none;
-  animation: like-bubble 0.4s cubic-bezier(.4,0,.2,1);
+  animation: like-bubble 0.5s cubic-bezier(.17,.67,.83,.67) forwards;
+  z-index: -1;
 }
+
 @keyframes like-bubble {
-  0% { opacity: 0.7; transform: translateY(-50%) scale(0.6);}
-  70% { opacity: 0.3; transform: translateY(-50%) scale(1.15);}
-  100% { opacity: 0; transform: translateY(-50%) scale(1.5);}
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.8; }
+  50% { opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
 }
 
 /* Profile elements */
@@ -386,7 +401,7 @@ button.flex.items-center.text-red-500::after {
   display: none !important;
 }
 
-/* Input elements */
+/* Input elements - Fixed alignment */
 .appearance-none {
   appearance: none;
 }
@@ -394,7 +409,7 @@ button.flex.items-center.text-red-500::after {
 .border {
   border-width: 1px;
   border-style: solid;
-  border-color: var(--gray-200);
+  border-color: var(--input-border);
 }
 
 .leading-tight {
@@ -406,21 +421,38 @@ button.flex.items-center.text-red-500::after {
 }
 
 .focus\:shadow-outline:focus {
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
-/* Form elements */
+/* Form elements with improved alignment */
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
 input[type="text"], textarea {
-  border-color: var(--gray-200);
-  border-radius: 0.25rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  background: #f9fafb;
-  color: var(--gray-700);
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--input-border);
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 input[type="text"]:focus, textarea:focus {
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.13);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  outline: none;
+}
+
+input[type="text"]::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 textarea {
@@ -440,7 +472,7 @@ input[type="file"].hidden {
 }
 
 .border-gray-200 {
-  border-color: var(--gray-200);
+  border-color: var(--border-color);
 }
 
 .pb-4 {
@@ -460,15 +492,25 @@ input[type="file"].hidden {
   margin-top: 2rem;
 }
 
-/* Notification styles */
+/* Notification styles with popup animation */
 .bg-green-100 {
-  background-color: #d1fae5;
+  background-color: rgba(34, 197, 94, 0.15);
   color: var(--accent-green);
+  animation: notification-popup 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  border-left: 4px solid var(--accent-green);
 }
 
 .bg-red-100 {
-  background-color: #fee2e2;
+  background-color: rgba(239, 68, 68, 0.15);
   color: var(--accent-red);
+  animation: notification-popup 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  border-left: 4px solid var(--accent-red);
+}
+
+@keyframes notification-popup {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .p-3 {
@@ -500,7 +542,7 @@ body:not(.debug-mode) div[class*="debug"] {
 }
 
 .text-gray-400 {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 /* Additional styles for tweet media */
@@ -535,6 +577,8 @@ header .w-10.h-10.rounded-full {
 [class*="notification"] {
   transition: opacity 0.3s ease;
   opacity: 1;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 [class*="notification"]:empty {
@@ -543,4 +587,31 @@ header .w-10.h-10.rounded-full {
   margin: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/* Tweet card styling */
+.space-y-4 > div {
+  background-color: var(--secondary-bg);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.space-y-4 > div:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Choose file button styling */
+label.cursor-pointer {
+  display: inline-block;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+label.cursor-pointer:hover {
+  background-color: var(--accent-blue-hover);
+}
+
+label.cursor-pointer:active {
+  transform: translateY(1px);
 }

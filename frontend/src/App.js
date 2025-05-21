@@ -3,19 +3,15 @@ import { RpcProvider, Contract, shortString, num } from "starknet";
 import axios from "axios";
 import "./App.css";
 
-// Starknet Contract Information
-const CONTRACT_ADDRESS = "0x041ee9a8e806d04256c40fe24394ce2eb7c4c6a57aabbaa495b4a15d9de812b6";
+const CONTRACT_ADDRESS = "0x01d2d2cd5ea6d0be0b305745768ae28273683200a5c93591dd332a8e863c5487";
 
-// Replace these with your Pinata API keys
 const PINATA_API_KEY = "bc4d4e8362402c507084"; 
 const PINATA_SECRET_API_KEY = "9340cd3ec48eb7222e9254f698ab501a6692c058b6e25f69d07a3c6b8b2e26e6";
 
-// Starknet Provider Configuration
 const provider = new RpcProvider({
   nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/xu8recTcnFQYJFY0zvRJI",
 });
  
-// ABI - Fill in with your actual ABI
 const ABI = [
   {
     "name": "STK",
@@ -866,9 +862,8 @@ const ABI = [
       }
     ]
   }
-]; // Your ABI goes here
+]; 
 
-// Helper to safely stringify BigInt values
 const safeStringify = (obj) => {
   return JSON.stringify(obj, (key, value) => 
     typeof value === 'bigint' ? value.toString() : value
@@ -876,7 +871,6 @@ const safeStringify = (obj) => {
 };
 
 function App() {
-  // State variables
   const [walletConnected, setWalletConnected] = useState(false);
   const [accountAddress, setAccountAddress] = useState("");
   const [username, setUsername] = useState("");
@@ -897,39 +891,32 @@ function App() {
   const [profilePicFileName, setProfilePicFileName] = useState("");
   const [userProfiles, setUserProfiles] = useState({}); // Cache for user profiles
 
-  // Debug
   const [debugLog, setDebugLog] = useState([]);
   
-  // Add debug logging function
   const addDebugLog = (message) => {
     console.log(message);
     setDebugLog(prev => [...prev, { time: new Date().toISOString(), message }]);
   };
 
-  // Show notification helper
   const showNotification = (message, type = "error") => {
     setError(message);
     setNotification({ message, type });
     
-    // Auto-dismiss after 5 seconds
     setTimeout(() => {
       setError("");
       setNotification({ message: "", type: "" });
     }, 5000);
   };
 
-  // Helper function to fix IPFS URLs
   const fixIpfsUrl = (url) => {
     if (!url) return "";
     
-    // If it's already a complete URL with https://, check it's valid
     if (url.startsWith("https://")) {
       // Check if it's the truncated URL ending with just '/ipfs'
       if (url === "https://gateway.pinata.cloud/ipfs" || url === "https://gateway.pinata.cloud/ip") {
         return ""; // Invalid URL, return empty
       }
       
-      // If it's a truncated URL, attempt to complete it from localStorage
       if (url === "https://gateway.pinata.cloud/") {
         return "";
       }
@@ -937,16 +924,13 @@ function App() {
       return url;
     }
     
-    // If it's just an IPFS hash (starts with Qm)
     if (url.startsWith("Qm")) {
       return `https://gateway.pinata.cloud/ipfs/${url}`;
     }
     
-    // If none of the above, return the original
     return url;
   };
 
-  // Helper function to safely save to local storage
   const safeLocalStorageSave = (key, value) => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
@@ -957,7 +941,6 @@ function App() {
     }
   };
 
-  // Helper function to safely get from local storage
   const safeLocalStorageGet = (key, defaultValue = {}) => {
     try {
       const value = localStorage.getItem(key);
@@ -968,7 +951,6 @@ function App() {
     }
   };
 
-  // Connect wallet function
   const connectWallet = async () => {
     if (!window.starknet) {
       showNotification("Please install a StarkNet wallet like Argent X or Braavos");
@@ -978,41 +960,34 @@ function App() {
     try {
       setIsLoading(true);
       
-      // Enable the wallet
       await window.starknet.enable();
       
-      // Get the account directly from starknet
       const starkAccount = window.starknet.account;
       
       if (!starkAccount || !starkAccount.address) {
         throw new Error("No account selected in wallet");
       }
 
-      // Create a read-only contract for testing
       const viewOnlyContract = new Contract(ABI, CONTRACT_ADDRESS, provider);
       
       try {
-        // Test contract calls with proper error handling
         addDebugLog("Testing contract calls with address: " + starkAccount.address);
         const accounts = await viewOnlyContract.get_name(starkAccount.address);
         addDebugLog("Account name result: " + safeStringify(accounts));
         
-        // Test tweet fetching
         const tweetCount = await viewOnlyContract.get_global_tweet_count();
         addDebugLog("Tweet count result: " + safeStringify(tweetCount));
       } catch (testError) {
         addDebugLog("Contract test call error: " + (testError.message || JSON.stringify(testError)));
       }
       
-      // Create a contract instance with the connected account
       const contractInstance = new Contract(ABI, CONTRACT_ADDRESS, starkAccount);
       
       setContract(contractInstance);
       setWalletConnected(true);
       setAccountAddress(starkAccount.address);
-      setStarknetAccount(starkAccount); // Save the account object
+      setStarknetAccount(starkAccount); 
       
-      // Load user profile immediately after connecting
       await fetchUserProfile(starkAccount.address, true);
       
       addDebugLog("Wallet connected: " + starkAccount.address);
@@ -1025,7 +1000,6 @@ function App() {
     }
   };
 
-  // Upload file to Pinata
   const uploadToPinata = async (file) => {
     try {
       setIsLoading(true);
@@ -1060,7 +1034,6 @@ function App() {
       
       addDebugLog("File uploaded to Pinata: " + safeStringify(res.data));
       
-      // Make sure we get a complete IPFS URI with the CID
       const ipfsUri = `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`;
       addDebugLog("Complete IPFS URI: " + ipfsUri);
       
@@ -1076,13 +1049,7 @@ function App() {
     }
   };
 
-  // Set user profile
   
-
-  // Create tweet
-  
-
-  // Like a tweet
   const likeTweet = async (tweetId) => {
     if (!walletConnected) {
       showNotification("Please connect wallet");
@@ -1092,14 +1059,12 @@ function App() {
     try {
       setIsLoading(true);
       
-      // Convert tweetId to uint256 format for contract
       const tweetIdBN = num.toBigInt(tweetId);
       
       if (!contract) {
         throw new Error("Contract not initialized");
       }
       
-      // Call contract to like tweet
       addDebugLog("Liking tweet ID: " + tweetId);
       try {
         const tx = await contract.like_tweet(tweetIdBN);
@@ -1112,7 +1077,6 @@ function App() {
         throw new Error("Like tweet transaction failed: " + (txError.message || "Transaction error"));
       }
       
-      // Refresh tweets
       await fetchAllTweets();
       
       showNotification("Tweet liked successfully!", "success");
@@ -1128,31 +1092,19 @@ function App() {
     }
   };
 
-  // Get media URL from localStorage or fix the fetched one
- 
 
-  // Get profile picture URL
-
-
-  // Fetch user profile
-  
-
-  // Fetch all tweets
   const fetchAllTweets = async () => {
     try {
       setIsLoading(true);
       
-      // Create a read-only contract instance
       const viewOnlyContract = new Contract(ABI, CONTRACT_ADDRESS, provider);
       
       addDebugLog("Fetching all tweets...");
       
-      // Get total tweet count
       try {
         const tweetCountResponse = await viewOnlyContract.get_global_tweet_count();
         addDebugLog("Tweet count response: " + safeStringify(tweetCountResponse));
         
-        // Check if response exists and is valid
         if (!tweetCountResponse) {
           addDebugLog("No tweet count returned");
           setTweets([]);
@@ -1167,13 +1119,10 @@ function App() {
           return;
         }
         
-        // Limiting to a reasonable number for performance
         const totalTweets = Math.min(tweetCount, 1000);
         let allTweets = [];
         
-        // Fetch tweets in one batch
         try {
-          // Get all tweets 
           addDebugLog(`Fetching tweets: offset=0, limit=${totalTweets}`);
           
           const tweetBatchResponse = await viewOnlyContract.get_all_tweets(0, totalTweets);
@@ -1185,7 +1134,6 @@ function App() {
             return;
           }
           
-          // Process each tweet
           for (let j = 0; j < tweetBatchResponse.length; j++) {
             const tweetId = j;
             const tweetData = tweetBatchResponse[j];
@@ -1199,7 +1147,6 @@ function App() {
             let tweetContent = "";
             
             try {
-              // Only decode if the value is not zero
               if (tweetData[1] && tweetData[1].toString() !== '0') {
                 tweetContent = shortString.decodeShortString(tweetData[1]);
               }
@@ -1208,7 +1155,6 @@ function App() {
               tweetContent = "[Decode Error]";
             }
             
-            // Initialize tweet object
             const tweet = {
               id: tweetId,
               author: {
@@ -1222,7 +1168,6 @@ function App() {
               hasLiked: false
             };
             
-            // Check if it's a media tweet
             try {
               // Get tweet with media details
               const mediaTweetResponse = await viewOnlyContract.get_tweet_with_media(tweetId);
