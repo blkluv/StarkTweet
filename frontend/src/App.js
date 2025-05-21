@@ -15,8 +15,8 @@ const provider = new RpcProvider({
   nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/FCyLgvgy4q9oa_OScl33IgtjRYHNr1gP",
 });
  
-// ABI - You'll fill this in with your ABI
-const ABI =[
+// ABI - Fill in with your actual ABI
+const ABI = [
   {
     "name": "STK",
     "type": "impl",
@@ -866,7 +866,7 @@ const ABI =[
       }
     ]
   }
-] ; // Your ABI goes here
+]; // Your ABI goes here
 
 // Helper to safely stringify BigInt values
 const safeStringify = (obj) => {
@@ -895,6 +895,7 @@ function App() {
   const [starknetAccount, setStarknetAccount] = useState(null); 
   const [mediaFileName, setMediaFileName] = useState("");
   const [profilePicFileName, setProfilePicFileName] = useState("");
+  const [userProfiles, setUserProfiles] = useState({}); // Cache for user profiles
 
   // Debug
   const [debugLog, setDebugLog] = useState([]);
@@ -923,10 +924,9 @@ function App() {
     
     // If it's already a complete URL with https://, return it
     if (url.startsWith("https://")) {
-      // Check if it's a truncated URL (gateway.pinata.cloud/ip)
-      if (url.endsWith("/ip")) {
-        // Add the missing fs part
-        return url + "fs";
+      // Check if it's the truncated URL ending with just '/ipfs'
+      if (url === "https://gateway.pinata.cloud/ipfs") {
+        return ""; // Invalid URL, return empty
       }
       return url;
     }
@@ -984,8 +984,8 @@ function App() {
       setAccountAddress(starkAccount.address);
       setStarknetAccount(starkAccount); // Save the account object
       
-      // Load user profile after connecting
-      await fetchUserProfile(starkAccount.address);
+      // Load user profile immediately after connecting
+      await fetchUserProfile(starkAccount.address, true);
       
       addDebugLog("Wallet connected: " + starkAccount.address);
       showNotification("Wallet connected successfully!", "success");
@@ -1032,7 +1032,7 @@ function App() {
       
       addDebugLog("File uploaded to Pinata: " + safeStringify(res.data));
       
-      // Make sure we get a complete IPFS URI
+      // Make sure we get a complete IPFS URI with the CID
       const ipfsUri = `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`;
       addDebugLog("Complete IPFS URI: " + ipfsUri);
       
@@ -1122,7 +1122,7 @@ function App() {
       }
       
       // Refresh user profile
-      await fetchUserProfile(accountAddress);
+      await fetchUserProfile(accountAddress, true);
       
       showNotification("Profile updated successfully!", "success");
     } catch (err) {
@@ -1286,6 +1286,11 @@ function App() {
       addDebugLog("Error reading from localStorage: " + error.message);
     }
     
+    // If the URI is incomplete (like ending with just "/ipfs")
+    if (contractMediaUri === "https://gateway.pinata.cloud/ipfs") {
+      return ""; // Invalid URL
+    }
+    
     // Otherwise use the contract one but fix it
     return fixIpfsUrl(contractMediaUri);
   };
@@ -1302,14 +1307,32 @@ function App() {
       addDebugLog("Error reading profile pic from localStorage: " + error.message);
     }
     
+    // If the URI is incomplete (like ending with just "/ipfs")
+    if (contractProfilePic === "https://gateway.pinata.cloud/ipfs") {
+      return ""; // Invalid URL
+    }
+    
     // Otherwise use the contract one but fix it
     return fixIpfsUrl(contractProfilePic);
   };
 
   // Fetch user profile
-  const fetchUserProfile = async (address) => {
+  const fetchUserProfile = async (address, forceRefresh = false) => {
     try {
       if (!address) return { name: "", profilePic: "" };
+      
+      // Check if we already have this profile cached and not forcing refresh
+      if (!forceRefresh && userProfiles[address]) {
+        addDebugLog("Using cached profile for: " + address);
+        // If this is the current user, update state
+        if (address === accountAddress) {
+          setUserProfile(userProfiles[address]);
+          if (userProfiles[address].name && !username) {
+            setUsername(userProfiles[address].name);
+          }
+        }
+        return userProfiles[address];
+      }
       
       // Create a read-only contract instance
       const viewOnlyContract = new Contract(ABI, CONTRACT_ADDRESS, provider);
@@ -1349,6 +1372,12 @@ function App() {
         
         const profile = { name: nameStr, profilePic: profilePicUri };
         addDebugLog("Fetched profile: " + safeStringify(profile));
+        
+        // Update cached profiles
+        setUserProfiles(prev => ({
+          ...prev,
+          [address]: profile
+        }));
         
         // Update state if it's the current user
         if (address === accountAddress) {
@@ -1399,14 +1428,13 @@ function App() {
           return;
         }
         
-        // Fetch tweets in batches (e.g., 10 at a time)
-        const batchSize = 100; // Reduced for better stability
-        const totalTweets = Math.min(tweetCount, 1000); // Limit to 1000 for performance
+        // Limiting to a reasonable number for performance
+        const totalTweets = Math.min(tweetCount, 1000);
         let allTweets = [];
         
-        // Fetch tweets in batches
+        // Fetch tweets in one batch
         try {
-          // Get all tweets - using simpler call pattern
+          // Get all tweets 
           addDebugLog(`Fetching tweets: offset=0, limit=${totalTweets}`);
           
           const tweetBatchResponse = await viewOnlyContract.get_all_tweets(0, totalTweets);
@@ -1504,7 +1532,7 @@ function App() {
               // Continue even if media detail fetching fails
             }
             
-            // Fetch author profile information
+            // Fetch author profile information - use cache if available
             try {
               const authorProfile = await fetchUserProfile(authorAddress);
               tweet.author.name = authorProfile.name;
@@ -1559,6 +1587,14 @@ function App() {
     };
     
     checkWalletConnection();
+    
+    // Load cached profile data from localStorage
+    try {
+      const userMediaMap = JSON.parse(localStorage.getItem('starktweet_media_map') || '{}');
+      addDebugLog("Loaded media map from localStorage: " + Object.keys(userMediaMap).length + " entries");
+    } catch (error) {
+      addDebugLog("Error loading from localStorage: " + error.message);
+    }
   }, []);
 
   // Handle media file selection
@@ -1588,185 +1624,256 @@ function App() {
   };
 
   // Format address for display
+  // Format address for display
   const formatAddress = (address) => {
     if (!address) return "";
     // Handle address as string (it might be BigInt before)
-    address = address.toString(); 
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    address = address.toString();
+    
+    if (address.length < 10) return address;
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
+
+  // Get short tweet display content
+  const getTweetDisplayContent = (content) => {
+    return content || "[No content]";
+  };
+  
+  // Refresh all data
+  const refreshData = async () => {
+    if (walletConnected) {
+      await fetchUserProfile(accountAddress, true);
+      await fetchAllTweets();
+    }
   };
 
   return (
-  <div className="starktweet-app">
-    <header className="app-header">
-      <h1>StarkTweet</h1>
-      {!walletConnected ? (
-        <button onClick={connectWallet} className="connect-button" disabled={isLoading}>
-          {isLoading ? "Connecting..." : "Connect Wallet"}
-        </button>
-      ) : (
-        <div className="user-info">
-          <span>{userProfile.name || formatAddress(accountAddress)}</span>
-          {userProfile.profilePic && (
-            <img 
-              src={userProfile.profilePic} 
-              alt="Profile" 
-              className="profile-pic-small" 
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "https://via.placeholder.com/40?text=Error";
-              }}
-            />
-          )}
+    <div className="app-container">
+      <header className="app-header">
+        <h1>StarkTweet</h1>
+        {!walletConnected ? (
+          <button 
+            className="connect-button" 
+            onClick={connectWallet} 
+            disabled={isLoading}
+          >
+            {isLoading ? "Connecting..." : "Connect Wallet"}
+          </button>
+        ) : (
+          <div className="user-info">
+            <div className="profile-info">
+              {userProfile.profilePic && (
+                <img 
+                  src={userProfile.profilePic} 
+                  alt="Profile" 
+                  className="header-profile-pic"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://via.placeholder.com/50";
+                  }}
+                />
+              )}
+              <div>
+                <p className="username">{userProfile.name || "Anonymous"}</p>
+                <p className="address">{formatAddress(accountAddress)}</p>
+              </div>
+            </div>
+            <button className="refresh-button" onClick={refreshData} disabled={isLoading}>
+              {isLoading ? "Loading..." : "🔄 Refresh"}
+            </button>
+          </div>
+        )}
+      </header>
+
+      {notification.message && (
+        <div className={`notification ${notification.type}`}>
+          {notification.message}
         </div>
       )}
-    </header>
 
-    {walletConnected && (
       <div className="app-content">
-        <div className="profile-section">
-          <h2>Your Profile</h2>
-          <div className="profile-form">
-            <input
-              type="text"
-              placeholder="Username (max 31 chars)"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              maxLength={31}
-              className="input-field"
-            />
-            <div className="file-input-container">
-              <label className="file-input-label">
-                {profilePicFileName || "Choose Profile Picture"}
-                <input
-                  type="file"
-                  onChange={(e) => handleFileChange(e, "profilePic")}
-                  accept="image/*"
-                  className="file-input"
-                />
-              </label>
-            </div>
-            <button
-              onClick={updateUserProfile}
-              className="action-button"
-              disabled={isLoading || !username}
-            >
-              {isLoading ? "Updating..." : "Update Profile"}
-            </button>
-          </div>
-        </div>
-
-        <div className="tweet-form">
-          <h2>Create Tweet</h2>
-          <textarea
-            placeholder="What's happening? (max 31 chars)"
-            value={tweetContent}
-            onChange={(e) => setTweetContent(e.target.value)}
-            maxLength={31}
-            className="tweet-input"
-          />
-          <div className="tweet-actions">
-            <div className="file-input-container">
-              <label className="file-input-label">
-                {mediaFileName || "Add Media"}
-                <input
-                  type="file"
-                  onChange={(e) => handleFileChange(e, "media")}
-                  accept="image/*"
-                  className="file-input"
-                />
-              </label>
-            </div>
-            <button
-              onClick={createTweet}
-              className="action-button"
-              disabled={isLoading || !tweetContent}
-            >
-              {isLoading ? "Posting..." : "Tweet"}
-            </button>
-          </div>
-        </div>
-
-        <div className="tweets-section">
-          <h2>Tweets</h2>
-          <button onClick={fetchAllTweets} className="refresh-button" disabled={isLoading}>
-            {isLoading ? "Refreshing..." : "Refresh Tweets"}
-          </button>
-          
-          {tweets.length === 0 ? (
-            <p className="no-tweets-message">No tweets found. Be the first to tweet!</p>
-          ) : (
-            <div className="tweets-list">
-              {tweets.map((tweet) => (
-                <div key={tweet.id} className="tweet-card">
-                  <div className="tweet-header">
-                    {tweet.author.profilePic ? (
-                      <img
-                        src={tweet.author.profilePic}
-                        alt="Author"
-                        className="tweet-profile-pic"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "https://via.placeholder.com/40?text=Error";
-                        }}
+        <div className="left-panel">
+          {walletConnected && (
+            <>
+              <div className="profile-section section-container">
+                <h2>Profile</h2>
+                <div className="profile-form">
+                  <div className="input-group">
+                    <label>Username</label>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      maxLength={31}
+                    />
+                  </div>
+                  
+                  <div className="input-group">
+                    <label>Profile Picture</label>
+                    <div className="file-input-container">
+                      <input
+                        type="file"
+                        id="profile-pic"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, "profilePic")}
+                        className="file-input"
                       />
-                    ) : (
-                      <div className="profile-placeholder"></div>
-                    )}
-                    <div className="tweet-author">
-                      <span className="author-name">{tweet.author.name || formatAddress(tweet.author.address)}</span>
-                      <span className="author-address">{formatAddress(tweet.author.address)}</span>
+                      <label htmlFor="profile-pic" className="file-input-label">
+                        {profilePicFileName || "Choose file"}
+                      </label>
                     </div>
                   </div>
-                  <div className="tweet-content">{tweet.content}</div>
-                  {tweet.mediaUri && (
-                    <div className="tweet-media">
-                      <img
-                        src={tweet.mediaUri}
-                        alt="Tweet media"
-                        className="tweet-image"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "https://via.placeholder.com/300x200?text=Media+Error";
-                        }}
+                  
+                  <button 
+                    onClick={updateUserProfile} 
+                    disabled={isLoading || !username}
+                    className="update-profile-button"
+                  >
+                    {isLoading ? "Updating..." : "Update Profile"}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="create-tweet-section section-container">
+                <h2>Create Tweet</h2>
+                <div className="tweet-form">
+                  <div className="input-group">
+                    <textarea
+                      value={tweetContent}
+                      onChange={(e) => setTweetContent(e.target.value)}
+                      placeholder="What's happening?"
+                      maxLength={31}
+                      rows={3}
+                    ></textarea>
+                    <span className="char-count">{tweetContent.length}/31</span>
+                  </div>
+                  
+                  <div className="input-group">
+                    <div className="file-input-container">
+                      <input
+                        type="file"
+                        id="media-file"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, "media")}
+                        className="file-input"
                       />
+                      <label htmlFor="media-file" className="file-input-label">
+                        {mediaFileName || "Add image"}
+                      </label>
                     </div>
-                  )}
-                  <div className="tweet-footer">
-                    <button
+                  </div>
+                  
+                  <button 
+                    onClick={createTweet} 
+                    disabled={isLoading || !tweetContent}
+                    className="create-tweet-button"
+                  >
+                    {isLoading ? "Posting..." : "Tweet"}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+          
+          {!walletConnected && (
+            <div className="section-container welcome-section">
+              <h2>Welcome to StarkTweet!</h2>
+              <p>Connect your StarkNet wallet to start tweeting.</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="right-panel">
+          <div className="tweets-section section-container">
+            <h2>Tweets</h2>
+            {walletConnected && isLoading && tweets.length === 0 && (
+              <div className="loading-tweets">Loading tweets...</div>
+            )}
+            
+            {tweets.length === 0 && !isLoading && (
+              <div className="no-tweets">No tweets found. Be the first to tweet!</div>
+            )}
+            
+            <div className="tweets-list">
+              {tweets.map((tweet) => (
+                <div key={tweet.id} className="tweet">
+                  <div className="tweet-header">
+                    <div className="tweet-author">
+                      {tweet.author.profilePic ? (
+                        <img 
+                          src={tweet.author.profilePic} 
+                          alt="Profile" 
+                          className="tweet-profile-pic"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://via.placeholder.com/40";
+                          }}
+                        />
+                      ) : (
+                        <div className="tweet-profile-placeholder"></div>
+                      )}
+                      <div>
+                        <p className="tweet-author-name">
+                          {tweet.author.name || "Anonymous"}
+                        </p>
+                        <p className="tweet-author-address">
+                          {formatAddress(tweet.author.address)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="tweet-content">
+                    <p>{getTweetDisplayContent(tweet.content)}</p>
+                    
+                    {tweet.mediaUri && (
+                      <div className="tweet-media">
+                        <img 
+                          src={tweet.mediaUri} 
+                          alt="Tweet media" 
+                          onError={(e) => {
+                            addDebugLog(`Failed to load image: ${tweet.mediaUri}`);
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="tweet-actions">
+                    <button 
+                      className={`like-button ${tweet.hasLiked ? 'liked' : ''}`}
                       onClick={() => likeTweet(tweet.id)}
-                      className={`like-button ${tweet.hasLiked ? "liked" : ""}`}
                       disabled={isLoading || tweet.hasLiked}
                     >
-                      {tweet.hasLiked ? "Liked" : "Like"} ({tweet.likes})
+                      {tweet.hasLiked ? '❤️' : '🤍'} {tweet.likes}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       </div>
-    )}
-    
-    {notification.message && (
-      <div className={`notification ${notification.type}`}>
-        {notification.message}
-      </div>
-    )}
-    
-    {/* Debug Panel - Hidden in production */}
-    <details className="debug-panel">
-      <summary>Debug Log</summary>
-      <div className="debug-log">
-        {debugLog.map((log, index) => (
-          <div key={index} className="log-entry">
-            <span className="log-time">{log.time}</span>
-            <span className="log-message">{log.message}</span>
+
+      {/* Debug section - can be removed in production */}
+      <div className="debug-section">
+        <details>
+          <summary>Debug Log ({debugLog.length})</summary>
+          <div className="debug-log">
+            {debugLog.map((log, index) => (
+              <div key={index} className="debug-entry">
+                <span className="debug-time">{log.time.split('T')[1].split('.')[0]}</span>
+                <span className="debug-message">{log.message}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        </details>
       </div>
-    </details>
-  </div>
-);
+    </div>
+  );
 }
+
 export default App;
