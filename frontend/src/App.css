@@ -1,5 +1,21 @@
 /* StarkTweet Main Styles */
 
+/* Color palette enrichment */
+:root {
+  --primary-bg: #f3f6fa;
+  --secondary-bg: #ffffff;
+  --accent-blue: #2563eb;
+  --accent-blue-dark: #1743a2;
+  --accent-red: #ef4444;
+  --accent-green: #22c55e;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+}
+
 /* Base styles */
 body {
   margin: 0;
@@ -7,6 +23,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--primary-bg);
+  color: var(--gray-700);
 }
 
 .min-h-screen {
@@ -14,7 +32,7 @@ body {
 }
 
 .bg-gray-100 {
-  background-color: #f3f4f6;
+  background-color: var(--primary-bg);
 }
 
 .font-sans {
@@ -25,7 +43,7 @@ body {
 .container {
   width: 100%;
   max-width: 1280px;
-  transition: none; /* Prevents flickering on resize */
+  transition: none;
 }
 
 .mx-auto {
@@ -59,11 +77,9 @@ body {
   .md\:grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  
   .md\:col-span-1 {
     grid-column: span 1 / span 1;
   }
-  
   .md\:col-span-2 {
     grid-column: span 2 / span 2;
   }
@@ -75,11 +91,11 @@ header {
 }
 
 .bg-white {
-  background-color: #ffffff;
+  background-color: var(--secondary-bg);
 }
 
 .shadow-md {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px -2px rgba(37,99,235,0.10), 0 2px 4px -1px rgba(0,0,0,0.04);
 }
 
 .rounded-lg {
@@ -161,7 +177,7 @@ header {
 }
 
 .text-blue-600 {
-  color: #2563eb;
+  color: var(--accent-blue);
 }
 
 .text-white {
@@ -169,19 +185,19 @@ header {
 }
 
 .text-gray-500 {
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 .text-gray-600 {
-  color: #4b5563;
+  color: var(--gray-600);
 }
 
 .text-gray-700 {
-  color: #374151;
+  color: var(--gray-700);
 }
 
 .text-red-500 {
-  color: #ef4444;
+  color: var(--accent-red);
 }
 
 .text-red-700 {
@@ -189,7 +205,7 @@ header {
 }
 
 .text-green-700 {
-  color: #15803d;
+  color: var(--accent-green);
 }
 
 .text-center {
@@ -209,16 +225,16 @@ header {
 /* Buttons */
 button {
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.1s ease;
+  transition: background 0.3s, color 0.2s, transform 0.13s;
   outline: none;
 }
 
 button:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.98);
 }
 
 .bg-blue-500 {
-  background-color: #3b82f6;
+  background-color: var(--accent-blue);
 }
 
 .bg-blue-300 {
@@ -226,7 +242,7 @@ button:active {
 }
 
 .hover\:bg-blue-600:hover {
-  background-color: #2563eb;
+  background-color: var(--accent-blue-dark);
 }
 
 .disabled\:bg-blue-300:disabled {
@@ -263,7 +279,7 @@ button:active {
 }
 
 .shadow {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px 0 rgba(37,99,235,0.07), 0 1px 2px 0 rgba(0,0,0,0.04);
 }
 
 .w-full {
@@ -276,11 +292,58 @@ button:disabled {
 }
 
 .hover\:text-red-500:hover {
-  color: #ef4444;
+  color: var(--accent-red);
 }
 
 .hover\:text-red-700:hover {
   color: #b91c1c;
+}
+
+/* Like button animation */
+button.flex.items-center.text-red-500,
+button.flex.items-center.text-gray-500,
+button.flex.items-center.text-gray-500:hover,
+button.flex.items-center.text-red-500:hover {
+  position: relative;
+  transition: color 0.18s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1);
+}
+button.flex.items-center.text-red-500:active,
+button.flex.items-center.text-gray-500:active {
+  transform: scale(0.97);
+}
+
+/* Animate heart pop on like */
+button.flex.items-center.text-red-500 span:first-child {
+  display: inline-block;
+  animation: heart-pop 0.35s cubic-bezier(.4,0,.2,1);
+  color: var(--accent-red);
+}
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.4); }
+  70% { transform: scale(0.95);}
+  100% { transform: scale(1);}
+}
+
+/* Add a subtle bubble effect */
+button.flex.items-center.text-red-500::after {
+  content: '';
+  position: absolute;
+  left: 0.6em;
+  top: 50%;
+  width: 1.7em;
+  height: 1.7em;
+  background: rgba(239,68,68,0.12);
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0.6);
+  opacity: 0.6;
+  pointer-events: none;
+  animation: like-bubble 0.4s cubic-bezier(.4,0,.2,1);
+}
+@keyframes like-bubble {
+  0% { opacity: 0.7; transform: translateY(-50%) scale(0.6);}
+  70% { opacity: 0.3; transform: translateY(-50%) scale(1.15);}
+  100% { opacity: 0; transform: translateY(-50%) scale(1.5);}
 }
 
 /* Profile elements */
@@ -316,6 +379,13 @@ button:disabled {
   object-fit: contain;
 }
 
+/* Hide profile picture beside tweets (but keep in header/profile) */
+.md\:col-span-2 .w-10.h-10.rounded-full,
+.space-y-4 .w-10.h-10.rounded-full,
+.border-b .w-10.h-10.rounded-full {
+  display: none !important;
+}
+
 /* Input elements */
 .appearance-none {
   appearance: none;
@@ -324,7 +394,7 @@ button:disabled {
 .border {
   border-width: 1px;
   border-style: solid;
-  border-color: #e5e7eb;
+  border-color: var(--gray-200);
 }
 
 .leading-tight {
@@ -336,19 +406,21 @@ button:disabled {
 }
 
 .focus\:shadow-outline:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
 }
 
 /* Form elements */
 input[type="text"], textarea {
-  border-color: #d1d5db;
+  border-color: var(--gray-200);
   border-radius: 0.25rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #f9fafb;
+  color: var(--gray-700);
 }
 
 input[type="text"]:focus, textarea:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.13);
 }
 
 textarea {
@@ -368,7 +440,7 @@ input[type="file"].hidden {
 }
 
 .border-gray-200 {
-  border-color: #e5e7eb;
+  border-color: var(--gray-200);
 }
 
 .pb-4 {
@@ -390,11 +462,13 @@ input[type="file"].hidden {
 
 /* Notification styles */
 .bg-green-100 {
-  background-color: #dcfce7;
+  background-color: #d1fae5;
+  color: var(--accent-green);
 }
 
 .bg-red-100 {
   background-color: #fee2e2;
+  color: var(--accent-red);
 }
 
 .p-3 {
@@ -406,9 +480,11 @@ input[type="file"].hidden {
   max-height: 24rem;
 }
 
-/* Debug panel - hidden by default */
-.bg-gray-800 {
-  background-color: #1f2937;
+/* Debug panel - always hidden unless debug-mode is set on body */
+.bg-gray-800,
+body:not(.debug-mode) .bg-gray-800,
+body:not(.debug-mode) div[class*="debug"] {
+  display: none !important;
 }
 
 .overflow-auto {
@@ -427,11 +503,6 @@ input[type="file"].hidden {
   color: #9ca3af;
 }
 
-/* Hide debug panel in production */
-body:not(.debug-mode) div[class*="debug"] {
-  display: none;
-}
-
 /* Additional styles for tweet media */
 .tweet-media-container {
   width: 100%;
@@ -442,6 +513,7 @@ body:not(.debug-mode) div[class*="debug"] {
 /* Fix for profile picture positioning */
 header .w-10.h-10.rounded-full {
   flex-shrink: 0;
+  display: block !important;
 }
 
 /* Animation to prevent flickering */
@@ -457,12 +529,6 @@ header .w-10.h-10.rounded-full {
   to {
     opacity: 1;
   }
-}
-
-/* Ensure profile pic is not next to tweets */
-.md\:col-span-2 .w-10.h-10.rounded-full {
-  display: block;
-  margin-bottom: 0.5rem;
 }
 
 /* Clean notification display */
