@@ -24,6 +24,14 @@ Social media has long been monopolized by centralized tech giants, where algorit
 
 ---
 
+## Working Video
+
+
+
+https://github.com/user-attachments/assets/49d80e70-605a-4d1e-97b7-599831ef81da
+
+---
+
 ## ✨ Core Features
 
 ### 📱 Profile Pictures as NFTs
@@ -221,13 +229,7 @@ Emit logs for frontend listeners and analytics:
 
 ---
 
-## Working Video
 
-
-
-https://github.com/user-attachments/assets/49d80e70-605a-4d1e-97b7-599831ef81da
-
----
 
 ## 🌐 Open Source & Community
 
