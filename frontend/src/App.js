@@ -12,7 +12,7 @@ const PINATA_SECRET_API_KEY = "9340cd3ec48eb7222e9254f698ab501a6692c058b6e25f69d
 
 // Starknet Provider Configuration
 const provider = new RpcProvider({
-  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/FCyLgvgy4q9oa_OScl33IgtjRYHNr1gP",
+  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/xu8recTcnFQYJFY0zvRJI",
 });
  
 // ABI - Fill in with your actual ABI
