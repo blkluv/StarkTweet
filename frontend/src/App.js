@@ -5,11 +5,11 @@ import "./App.css";
 
 const CONTRACT_ADDRESS = "0x01d2d2cd5ea6d0be0b305745768ae28273683200a5c93591dd332a8e863c5487";
 
-const PINATA_API_KEY = "bc4d4e8362402c507084"; 
-const PINATA_SECRET_API_KEY = "9340cd3ec48eb7222e9254f698ab501a6692c058b6e25f69d07a3c6b8b2e26e6";
+const PINATA_API_KEY = "187f6b6843d2192f5e10"; 
+const PINATA_SECRET_API_KEY = "bc1d1602d84926def7619982dd21c6985cfb2eaaab07ef47f9a87457abf675c1";
 
 const provider = new RpcProvider({
-  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/xu8recTcnFQYJFY0zvRJI",
+  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/6r0XxiuXHjyTvzz9ftg1vJUmJzUtUger",
 });
  
 const ABI = [
@@ -1899,7 +1899,7 @@ function App() {
                   disabled={isLoading || !tweetContent}
                   className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold py-2 px-4 rounded shadow w-full"
                 >
-                  {isLoading ? "Posting..." : "Post Tweet"}
+                  {isLoading ? "Posting..." : "Post XO"}
                 </button>
               </div>
             </div>
