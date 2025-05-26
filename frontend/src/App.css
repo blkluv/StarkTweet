@@ -2,19 +2,20 @@
 
 /* Color palette - Dark Theme */
 :root {
-  --primary-bg: #000000;
-  --secondary-bg: #000000;
-  --card-bg: #273142;
-  --input-bg: #0f172a;
-  --input-border: #334155;
-  --accent-blue: #3b82f6;
-  --accent-blue-hover: #2563eb;
-  --accent-red: #ef4444;
-  --accent-green: #22c55e;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --border-color: #334155;
+  /* New Doodle Palette */
+  --primary-bg: #FDFDFD;
+  --secondary-bg: #F0F5FF;
+  --card-bg: #FFFFFF;
+  --input-bg: #FFFFFF;
+  --input-border: #D1D5DB;
+  --accent-blue: #A0D7E7;
+  --accent-blue-hover: #8BC7D7;
+  --accent-red: #F7A9A8;  /* Now using pink for errors/likes */
+  --accent-green: #B4F0A7;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --border-color: #E0E0E0;
 }
 
 /* Base styles */
@@ -614,4 +615,21 @@ label.cursor-pointer:hover {
 
 label.cursor-pointer:active {
   transform: translateY(1px);
+}
+/* ===== 3. ADD NEW DOODLE OVERRIDES AT THE BOTTOM ===== */
+/* Playful header */
+header {
+  background-color: var(--accent-yellow) !important;
+  border-bottom: 3px dashed var(--accent-pink) !important;
+}
+
+/* Doodle-like buttons */
+button:not(.text-red-500) {
+  border-radius: 12px !important;
+  border: 2px solid var(--text-primary) !important;
+}
+
+/* Card shadows */
+.space-y-4 > div {
+  box-shadow: 4px 4px 0px var(--accent-yellow);
 }

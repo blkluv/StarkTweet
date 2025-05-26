@@ -1762,7 +1762,7 @@ function App() {
     <div className="min-h-screen bg-gray-100 font-sans">
       <div className="container mx-auto px-4 py-8">
         <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-blue-600">StarkTweet</h1>
+          <h1 className="text-2xl font-bold text-blue-600">XO</h1>
           {walletConnected ? (
             <div className="flex items-center">
               <div className="mr-3 text-sm">
@@ -1853,7 +1853,7 @@ function App() {
               </div>
               
               <div className="bg-white shadow-md rounded-lg p-5">
-                <h2 className="text-xl font-bold mb-4">Create Tweet</h2>
+                <h2 className="text-xl font-bold mb-4">Create XO</h2>
                 <div className="mb-4">
                   <textarea
                     value={tweetContent}
@@ -1906,11 +1906,11 @@ function App() {
             
             <div className="md:col-span-2">
               <div className="bg-white shadow-md rounded-lg p-5">
-                <h2 className="text-xl font-bold mb-4">Tweets</h2>
+                <h2 className="text-xl font-bold mb-4">XOS</h2>
                 {isLoading && tweets.length === 0 ? (
-                  <div className="text-center py-4">Loading tweets...</div>
+                  <div className="text-center py-4">Loading XOS...</div>
                 ) : tweets.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">No tweets yet. Be the first to post!</div>
+                  <div className="text-center py-4 text-gray-500">No XOS yet. Be the first to post!</div>
                 ) : (
                   <div className="space-y-4">
                     {tweets.map((tweet) => (

@@ -1,21 +1,21 @@
-# StarkTweet: A Decentralized Tweeting Platform on StarkNet
+# XO: A Decentralized Tweeting Platform on StarkNet
 
 ## 🧠 Introduction
 
 
 **StarkNet**, a zk-rollup Layer 2 solution built on Ethereum, enables scalability, transparency, and low-cost transactions while retaining the security of Ethereum. Utilizing **STARKs** (Scalable Transparent Argument of Knowledge), StarkNet provides a cryptographic guarantee of validity without relying on trusted setups, and remains secure even against quantum attacks. It is powered by **Cairo**, a Turing-complete language designed specifically for writing zk-friendly smart contracts.
 
-Amid this context, we introduce **StarkTweet**, a fully on-chain, decentralized microblogging platform where users can share tweets, media, likes, and manage their identity, all via cryptographic verification and smart contracts. Built with **Cairo 1.0**, **StarkNet.js**, and **Pinata/IPFS**, StarkTweet combines the best of decentralized infrastructure with the social expressiveness of Web2.
+Amid this context, we introduce **XO**, a fully on-chain, decentralized microblogging platform where users can share tweets, media, likes, and manage their identity, all via cryptographic verification and smart contracts. Built with **Cairo 1.0**, **StarkNet.js**, and **Pinata/IPFS**, XO combines the best of decentralized infrastructure with the social expressiveness of Web2.
 
-This document serves as a comprehensive guide to StarkTweet’s architecture, functionalities, storage logic, and development journey. We aim to highlight how zk-rollups and StarkNet can enable scalable, censorship-resistant, user-owned social networks.
+This document serves as a comprehensive guide to XO architecture, functionalities, storage logic, and development journey. We aim to highlight how zk-rollups and StarkNet can enable scalable, censorship-resistant, user-owned social networks.
 
 ---
 
-## 🚀 Why StarkTweet?
+## 🚀 Why XO?
 
 Social media has long been monopolized by centralized tech giants, where algorithms control what users see, and user data is monetized with little to no transparency. Worse, users do not truly own their content, which is stored in centralized databases that can be modified or deleted at any time.
 
-**StarkTweet** seeks to solve these issues by building an alternative social network with the following key goals:
+**XO** seeks to solve these issues by building an alternative social network with the following key goals:
 
 1. **Content Ownership**: All tweets and media are minted as NFTs, enabling full ownership and traceability.
 2. **Decentralized Storage**: Media and metadata are stored on IPFS via **Pinata**, ensuring they remain accessible and immutable.
